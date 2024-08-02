@@ -16,10 +16,13 @@ from imwatermark import WatermarkEncoder
 from omegaconf import ListConfig, OmegaConf
 from PIL import Image
 from safetensors.torch import load_file as load_safetensors
-from scripts.demo.discretization import (
+from discretization import (
     Img2ImgDiscretizationWrapper,
     Txt2NoisyDiscretizationWrapper,
 )
+
+import sys
+sys.path.append('.')
 from scripts.util.detection.nsfw_and_watermark_dectection import DeepFloydDataFiltering
 from sgm.inference.helpers import embed_watermark
 from sgm.modules.diffusionmodules.guiders import (

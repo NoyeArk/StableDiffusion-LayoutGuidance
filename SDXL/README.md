@@ -147,7 +147,7 @@ now `DiffusionEngine`) has been cleaned up:
 
 ```shell
 git clone https://github.com/Stability-AI/generative-models.git
-cd generative-models
+cd SDXL
 ```
 
 #### 2. Setting up the virtualenv

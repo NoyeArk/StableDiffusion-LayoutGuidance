@@ -1,5 +1,6 @@
 import torch
-
+import sys
+sys.path.append(".")
 from sgm.modules.diffusionmodules.discretizer import Discretization
 
 
@@ -35,7 +36,7 @@ class Txt2NoisyDiscretizationWrapper:
     """
 
     def __init__(
-        self, discretization: Discretization, strength: float = 0.0, original_steps=None
+            self, discretization: Discretization, strength: float = 0.0, original_steps=None
     ):
         self.discretization = discretization
         self.strength = strength

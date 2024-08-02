@@ -1,6 +1,6 @@
+from streamlit_helpers import *
+from streamlit_helpers import set_lowvram_mode
 from pytorch_lightning import seed_everything
-
-from scripts.demo.streamlit_helpers import *
 
 SAVE_PATH = "outputs/demo/txt2img/"
 

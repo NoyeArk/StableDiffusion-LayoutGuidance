@@ -10,6 +10,8 @@ from omegaconf import ListConfig
 from PIL import Image
 from torch import autocast
 
+import sys
+sys.path.append('.')
 from sgm.util import append_dims
 
 

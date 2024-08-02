@@ -1,8 +1,8 @@
-# Adding this at the very top of app.py to make 'generative-models' directory discoverable
+# Adding this at the very top of app.py to make 'SDXL' directory discoverable
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "generative-models"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "SDXL"))
 
 import math
 import random

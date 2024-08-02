@@ -3,26 +3,28 @@ from typing import Callable, Iterable, Union
 import torch
 from einops import rearrange, repeat
 
+import sys
+sys.path.append(".")
 from sgm.modules.diffusionmodules.model import (XFORMERS_IS_AVAILABLE,
-                                                AttnBlock, Decoder,
-                                                MemoryEfficientAttnBlock,
-                                                ResnetBlock)
+                                                     AttnBlock, Decoder,
+                                                     MemoryEfficientAttnBlock,
+                                                     ResnetBlock)
 from sgm.modules.diffusionmodules.openaimodel import (ResBlock,
-                                                      timestep_embedding)
+                                                           timestep_embedding)
 from sgm.modules.video_attention import VideoTransformerBlock
 from sgm.util import partialclass
 
 
 class VideoResBlock(ResnetBlock):
     def __init__(
-        self,
-        out_channels,
-        *args,
-        dropout=0.0,
-        video_kernel_size=3,
-        alpha=0.0,
-        merge_strategy="learned",
-        **kwargs,
+            self,
+            out_channels,
+            *args,
+            dropout=0.0,
+            video_kernel_size=3,
+            alpha=0.0,
+            merge_strategy="learned",
+            **kwargs,
     ):
         super().__init__(out_channels=out_channels, dropout=dropout, *args, **kwargs)
         if video_kernel_size is None:
@@ -107,7 +109,7 @@ class AE3DConv(torch.nn.Conv2d):
 
 class VideoBlock(AttnBlock):
     def __init__(
-        self, in_channels: int, alpha: float = 0, merge_strategy: str = "learned"
+            self, in_channels: int, alpha: float = 0, merge_strategy: str = "learned"
     ):
         super().__init__(in_channels)
         # no context, single headed, as in base class
@@ -165,7 +167,7 @@ class VideoBlock(AttnBlock):
         return x_in + x
 
     def get_alpha(
-        self,
+            self,
     ):
         if self.merge_strategy == "fixed":
             return self.mix_factor
@@ -177,7 +179,7 @@ class VideoBlock(AttnBlock):
 
 class MemoryEfficientVideoBlock(MemoryEfficientAttnBlock):
     def __init__(
-        self, in_channels: int, alpha: float = 0, merge_strategy: str = "learned"
+            self, in_channels: int, alpha: float = 0, merge_strategy: str = "learned"
     ):
         super().__init__(in_channels)
         # no context, single headed, as in base class
@@ -235,7 +237,7 @@ class MemoryEfficientVideoBlock(MemoryEfficientAttnBlock):
         return x_in + x
 
     def get_alpha(
-        self,
+            self,
     ):
         if self.merge_strategy == "fixed":
             return self.mix_factor
@@ -246,11 +248,11 @@ class MemoryEfficientVideoBlock(MemoryEfficientAttnBlock):
 
 
 def make_time_attn(
-    in_channels,
-    attn_type="vanilla",
-    attn_kwargs=None,
-    alpha: float = 0,
-    merge_strategy: str = "learned",
+        in_channels,
+        attn_type="vanilla",
+        attn_kwargs=None,
+        alpha: float = 0,
+        merge_strategy: str = "learned",
 ):
     assert attn_type in [
         "vanilla",
@@ -292,20 +294,20 @@ class VideoDecoder(Decoder):
     available_time_modes = ["all", "conv-only", "attn-only"]
 
     def __init__(
-        self,
-        *args,
-        video_kernel_size: Union[int, list] = 3,
-        alpha: float = 0.0,
-        merge_strategy: str = "learned",
-        time_mode: str = "conv-only",
-        **kwargs,
+            self,
+            *args,
+            video_kernel_size: Union[int, list] = 3,
+            alpha: float = 0.0,
+            merge_strategy: str = "learned",
+            time_mode: str = "conv-only",
+            **kwargs,
     ):
         self.video_kernel_size = video_kernel_size
         self.alpha = alpha
         self.merge_strategy = merge_strategy
         self.time_mode = time_mode
         assert (
-            self.time_mode in self.available_time_modes
+                self.time_mode in self.available_time_modes
         ), f"time_mode parameter has to be in {self.available_time_modes}"
         super().__init__(*args, **kwargs)
 
