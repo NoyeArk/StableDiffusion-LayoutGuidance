@@ -50,34 +50,34 @@ class UNet2DConditionOutput(BaseOutput):
 
 class UNet2DConditionModel(ModelMixin, ConfigMixin):
     r"""
-    UNet2DConditionModel is a conditional 2D UNet model that takes in a noisy sample, conditional state, and a timestep
-    and returns sample shaped output.
+    UNet2DConditionModel 是一个条件 2D UNet 模型，它接受噪声样本、条件状态和时间步长
+    并返回样本形状输出。
 
-    This model inherits from [`ModelMixin`]. Check the superclass documentation for the generic methods the library
-    implements for all the models (such as downloading or saving, etc.)
+    此模型继承自 ['ModelMixin']。检查超类文档，了解泛型方法、库
+    适用于所有模型的实现（例如下载或保存等）
 
     Parameters:
-        sample_size (`int`, *optional*): The size of the input sample.
-        in_channels (`int`, *optional*, defaults to 4): The number of channels in the input sample.
-        out_channels (`int`, *optional*, defaults to 4): The number of channels in the output.
-        center_input_sample (`bool`, *optional*, defaults to `False`): Whether to center the input sample.
-        flip_sin_to_cos (`bool`, *optional*, defaults to `False`):
-            Whether to flip the sin to cos in the time embedding.
-        freq_shift (`int`, *optional*, defaults to 0): The frequency shift to apply to the time embedding.
-        down_block_types (`Tuple[str]`, *optional*, defaults to `("CrossAttnDownBlock2D", "CrossAttnDownBlock2D", "CrossAttnDownBlock2D", "DownBlock2D")`):
-            The tuple of downsample blocks to use.
-        up_block_types (`Tuple[str]`, *optional*, defaults to `("UpBlock2D", "CrossAttnUpBlock2D", "CrossAttnUpBlock2D", "CrossAttnUpBlock2D",)`):
-            The tuple of upsample blocks to use.
-        block_out_channels (`Tuple[int]`, *optional*, defaults to `(320, 640, 1280, 1280)`):
-            The tuple of output channels for each block.
-        layers_per_block (`int`, *optional*, defaults to 2): The number of layers per block.
-        downsample_padding (`int`, *optional*, defaults to 1): The padding to use for the downsampling convolution.
-        mid_block_scale_factor (`float`, *optional*, defaults to 1.0): The scale factor to use for the mid block.
-        act_fn (`str`, *optional*, defaults to `"silu"`): The activation function to use.
-        norm_num_groups (`int`, *optional*, defaults to 32): The number of groups to use for the normalization.
-        norm_eps (`float`, *optional*, defaults to 1e-5): The epsilon to use for the normalization.
-        cross_attention_dim (`int`, *optional*, defaults to 1280): The dimension of the cross attention features.
-        attention_head_dim (`int`, *optional*, defaults to 8): The dimension of the attention heads.
+        sample_size （'int'， *可选*）：输入样本的大小。
+        in_channels （'int'， *可选*， 默认为 4）： 输入样本中的通道数。
+        out_channels （'int'， *optional*， 默认为 4）： 输出中的通道数。
+        center_input_sample （'bool'， *可选*， 默认为 'False'）：是否将输入样本居中。
+        flip_sin_to_cos （'bool'， *可选*， 默认为 'False'）：
+            是否在时间嵌入中将 sin 翻转为 cos。
+        freq_shift （'int'， *optional*， 默认为 0）：应用于时间嵌入的频移。
+        down_block_types （'Tuple[str]'， *可选*， 默认为 '（“CrossAttnDownBlock2D”， “CrossAttnDownBlock2D”， “CrossAttnDownBlock2D”， “DownBlock2D”）'）：
+            要使用的下采样块的元组。
+        up_block_types （'Tuple[str]'， *可选*， 默认为 '（“UpBlock2D”， “CrossAttnUpBlock2D”， “CrossAttnUpBlock2D”， “CrossAttnUpBlock2D”，）'）：
+            要使用的 upsample 块的元组。
+        block_out_channels （'Tuple[int]'， *可选*， 默认为 '（320， 640， 1280， 1280）'）：
+            每个块的输出通道元组。
+        layers_per_block （'int'， *optional*， 默认为 2）： 每个块的层数。
+        downsample_padding （'int'， *optional*， 默认为 1）：用于下采样卷积的填充。
+        mid_block_scale_factor （'float'， *可选*， 默认为 1.0）： 用于中间块的比例因子。
+        act_fn （'str'， *可选*， 默认为 '“silu”'）： 要使用的激活函数。
+        norm_num_groups （'int'， *optional*， 默认为 32）：用于规范化的组数。
+        norm_eps （'float'， *optional*， 默认为 1e-5）：用于归一化的 epsilon。
+        cross_attention_dim （'int'， *可选*， 默认为 1280）： 交叉注意力特征的维度。
+        attention_head_dim （'int'， *可选*， 默认为 8）： 注意头的维度。
     """
 
     _supports_gradient_checkpointing = True
@@ -249,25 +249,25 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             return_dict: bool = True,
     ) -> Union[UNet2DConditionOutput, Tuple]:
         r"""
-        Args:
-            sample (`torch.FloatTensor`): (batch, channel, height, width) noisy inputs_coarse tensor
-            timestep (`torch.FloatTensor` or `float` or `int`): (batch) timesteps
-            encoder_hidden_states (`torch.FloatTensor`): (batch, channel, height, width) encoder hidden states
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`models.unet_2d_condition.UNet2DConditionOutput`] instead of a plain tuple.
+        参数：
+            样本 （'torch.FloatTensor'）： （batch， channel， height， width） 嘈杂的inputs_coarse张量
+            timestep （'torch.FloatTensor' 或 'float' 或 'int'）： （批处理） 时间步长
+            encoder_hidden_states（'torch.FloatTensor'）：（批次、通道、高度、宽度）编码器隐藏状态
+            return_dict （'bool'， *可选*， 默认为 'True'）：
+                是否返回 ['models.unet_2d_condition.UNet2DConditionOutput'] 而不是普通元组。
 
-        Returns:
-            [`~models.unet_2d_condition.UNet2DConditionOutput`] or `tuple`:
-            [`~models.unet_2d_condition.UNet2DConditionOutput`] if `return_dict` is True, otherwise a `tuple`. When
-            returning a tuple, the first element is the sample tensor.
+        返回：
+            ['~models.unet_2d_condition.UNet2DConditionOutput'] 或 'tuple'：
+            ['~models.unet_2d_condition.UNet2DConditionOutput'] 如果 'return_dict' 为 True，否则为 '元组'。什么时候
+            返回一个元组，第一个元素是样本张量。
         """
-        # By default samples have to be AT least a multiple of the overall upsampling factor.
-        # The overall upsampling factor is equal to 2 ** (# num of upsampling layears).
-        # However, the upsampling interpolation output size can be forced to fit any upsampling size
-        # on the fly if necessary.
+        # 默认情况下，样本必须至少是总体上采样因子的倍数。
+        # 总体上采样因子等于 2 **（# 上采样年数）。
+        # 但是，可以强制上采样插值输出大小以适应任何上采样大小
+        # 如有必要，即时提供。
         default_overall_up_factor = 2**self.num_upsamplers
 
-        # upsample size should be forwarded when sample is not a multiple of `default_overall_up_factor`
+        # 当样本不是 'default_overall_up_factor' 的倍数时，应转发 upsample 大小
         forward_upsample_size = False
         upsample_size = None
 
@@ -287,14 +287,14 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         elif torch.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None].to(sample.device)
 
-        # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+        # 以与 ONNX/Core ML 兼容的方式广播到批处理维度
         timesteps = timesteps.expand(sample.shape[0])
 
         t_emb = self.time_proj(timesteps)
 
-        # timesteps does not contain any weights and will always return f32 tensors
-        # but time_embedding might actually be running in fp16. so we need to cast here.
-        # there might be better ways to encapsulate this.
+        # timesteps 不包含任何权重，将始终返回 f32 张量
+        # 但是time_embedding实际上可能正在 FP16 中运行。所以我们需要在这里投射。
+        # 可能有更好的方法来封装这一点。
         t_emb = t_emb.to(dtype=self.dtype)
         emb = self.time_embedding(t_emb)
         # 2. pre-process

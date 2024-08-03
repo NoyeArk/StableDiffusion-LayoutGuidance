@@ -1,18 +1,18 @@
+import os
+import json
 import torch
+import hydra
+from PIL import Image
+from tqdm import tqdm
 from omegaconf import OmegaConf
+from utils import load_text_inversion
+from my_model import unet_2d_condition
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, LMSDiscreteScheduler
-from my_model import unet_2d_condition
-import json
-from PIL import Image
 from utils import compute_ca_loss, Pharse2idx, draw_box, setup_logger
-import hydra
-import os
-from tqdm import tqdm
-from utils import load_text_inversion
+
+
 def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrases, cfg, logger):
-
-
     logger.info("Inference")
     logger.info(f"Prompt: {prompt}")
     logger.info(f"Phrases: {phrases}")
@@ -24,25 +24,28 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
     # Encode Classifier Embeddings
     uncond_input = tokenizer(
-        [""] * cfg.inference.batch_size, padding="max_length", max_length=tokenizer.model_max_length, return_tensors="pt"
+        [""] * cfg.inference.batch_size, padding="max_length", max_length=tokenizer.model_max_length,
+        return_tensors="pt"
     )
     uncond_embeddings = text_encoder(uncond_input.input_ids.to(device))[0]
 
     # Encode Prompt
     input_ids = tokenizer(
-            [prompt] * cfg.inference.batch_size,
-            padding="max_length",
-            truncation=True,
-            max_length=tokenizer.model_max_length,
-            return_tensors="pt",
-        )
+        [prompt] * cfg.inference.batch_size,
+        padding="max_length",
+        truncation=True,
+        max_length=tokenizer.model_max_length,
+        return_tensors="pt",
+    )
 
     cond_embeddings = text_encoder(input_ids.input_ids.to(device))[0]
     text_embeddings = torch.cat([uncond_embeddings, cond_embeddings])
     generator = torch.manual_seed(cfg.inference.rand_seed)  # Seed generator to create the initial latent noise
 
-    noise_scheduler = LMSDiscreteScheduler(beta_start=cfg.noise_schedule.beta_start, beta_end=cfg.noise_schedule.beta_end,
-                                           beta_schedule=cfg.noise_schedule.beta_schedule, num_train_timesteps=cfg.noise_schedule.num_train_timesteps)
+    noise_scheduler = LMSDiscreteScheduler(beta_start=cfg.noise_schedule.beta_start,
+                                           beta_end=cfg.noise_schedule.beta_end,
+                                           beta_schedule=cfg.noise_schedule.beta_schedule,
+                                           num_train_timesteps=cfg.noise_schedule.num_train_timesteps)
 
     latents = torch.randn(
         (cfg.inference.batch_size, 4, 64, 64),
@@ -86,7 +89,8 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
             # perform guidance
             noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-            noise_pred = noise_pred_uncond + cfg.inference.classifier_free_guidance * (noise_pred_text - noise_pred_uncond)
+            noise_pred = noise_pred_uncond + cfg.inference.classifier_free_guidance * (
+                        noise_pred_text - noise_pred_uncond)
 
             latents = noise_scheduler.step(noise_pred, t, latents).prev_sample
             torch.cuda.empty_cache()
@@ -104,17 +108,18 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
 @hydra.main(version_base=None, config_path="conf", config_name="base_config")
 def main(cfg):
-
     # build and load model
     with open(cfg.general.unet_config) as f:
         unet_config = json.load(f)
-    unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
+    unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
+                                                                                 subfolder="unet")
     tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
 
     if cfg.general.real_image_editing:
-        text_encoder, tokenizer = load_text_inversion(text_encoder, tokenizer, cfg.real_image_editing.placeholder_token, cfg.real_image_editing.text_inversion_path)
+        text_encoder, tokenizer = load_text_inversion(text_encoder, tokenizer, cfg.real_image_editing.placeholder_token,
+                                                      cfg.real_image_editing.text_inversion_path)
         unet.load_state_dict(torch.load(cfg.real_image_editing.dreambooth_path)['unet'])
         text_encoder.load_state_dict(torch.load(cfg.real_image_editing.dreambooth_path)['encoder'])
 
@@ -123,8 +128,6 @@ def main(cfg):
     unet.to(device)
     text_encoder.to(device)
     vae.to(device)
-
-
 
     # ------------------ example input ------------------
     examples = {"prompt": "A hello kitty toy is playing with a purple ball.",
@@ -152,13 +155,15 @@ def main(cfg):
     OmegaConf.save(cfg, os.path.join(cfg.general.save_path, 'config.yaml'))
 
     # Inference
-    pil_images = inference(device, unet, vae, tokenizer, text_encoder, examples['prompt'], examples['bboxes'], examples['phrases'], cfg, logger)
+    pil_images = inference(device, unet, vae, tokenizer, text_encoder, examples['prompt'], examples['bboxes'],
+                           examples['phrases'], cfg, logger)
 
     # Save example images
     for index, pil_image in enumerate(pil_images):
         image_path = os.path.join(cfg.general.save_path, 'example_{}.png'.format(index))
         logger.info('save example image to {}'.format(image_path))
         draw_box(pil_image, examples['bboxes'], examples['phrases'], image_path)
+
 
 if __name__ == "__main__":
     main()

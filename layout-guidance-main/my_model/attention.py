@@ -25,6 +25,7 @@ from diffusers.models.embeddings import ImagePositionalEmbeddings
 from diffusers.utils import BaseOutput
 from diffusers.utils.import_utils import is_xformers_available
 
+
 @dataclass
 class Transformer2DModelOutput(BaseOutput):
     """
@@ -46,57 +47,56 @@ else:
 
 class Transformer2DModel(ModelMixin, ConfigMixin):
     """
-    Transformer model for image-like data. Takes either discrete (classes of vector embeddings) or continuous (actual
-    embeddings) inputs_coarse.
+    用于类图像数据的 Transformer 模型。采用离散（向量嵌入的类）或连续的（实际
+    嵌入）inputs_coarse。
 
-    When input is continuous: First, project the input (aka embedding) and reshape to b, t, d. Then apply standard
-    transformer action. Finally, reshape to image.
+    当输入是连续的时：首先，投影输入（又名嵌入）并调整为 b、t、d。然后应用标准
+    变压器动作。最后，重塑图像。
 
-    When input is discrete: First, input (classes of latent pixels) is converted to embeddings and has positional
-    embeddings applied, see `ImagePositionalEmbeddings`. Then apply standard transformer action. Finally, predict
-    classes of unnoised image.
+    当输入是离散的时：首先，输入（潜在像素的类别）被转换为嵌入并具有位置
+    应用了嵌入，请参阅“ImagePositionalEmbeddings”。然后应用标准变压器动作。最后，预测
+    无噪声图像的类别。
 
-    Note that it is assumed one of the input classes is the masked latent pixel. The predicted classes of the unnoised
-    image do not contain a prediction for the masked pixel as the unnoised image cannot be masked.
-
+    请注意，假设其中一个输入类是被屏蔽的潜在像素。未噪声的预测类别
+    图像不包含对屏蔽像素的预测，因为无法屏蔽未加噪的图像。
     Parameters:
-        num_attention_heads (`int`, *optional*, defaults to 16): The number of heads to use for multi-head attention.
-        attention_head_dim (`int`, *optional*, defaults to 88): The number of channels in each head.
-        in_channels (`int`, *optional*):
-            Pass if the input is continuous. The number of channels in the input and output.
-        num_layers (`int`, *optional*, defaults to 1): The number of layers of Transformer blocks to use.
-        dropout (`float`, *optional*, defaults to 0.1): The dropout probability to use.
-        cross_attention_dim (`int`, *optional*): The number of context dimensions to use.
-        sample_size (`int`, *optional*): Pass if the input is discrete. The width of the latent images.
-            Note that this is fixed at training time as it is used for learning a number of position embeddings. See
-            `ImagePositionalEmbeddings`.
-        num_vector_embeds (`int`, *optional*):
-            Pass if the input is discrete. The number of classes of the vector embeddings of the latent pixels.
-            Includes the class for the masked latent pixel.
-        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
-        num_embeds_ada_norm ( `int`, *optional*): Pass if at least one of the norm_layers is `AdaLayerNorm`.
-            The number of diffusion steps used during training. Note that this is fixed at training time as it is used
-            to learn a number of embeddings that are added to the hidden states. During inference, you can denoise for
-            up to but not more than steps than `num_embeds_ada_norm`.
-        attention_bias (`bool`, *optional*):
-            Configure if the TransformerBlocks' attention should contain a bias parameter.
+        num_attention_heads （'int'， *可选*， 默认为 16）： 用于多头注意力的头部数量。
+        attention_head_dim （'int'， *optional*， 默认为 88）：每个磁头中的通道数。
+        in_channels （'int'， *可选*）：
+            如果输入是连续的，则传递。输入和输出中的通道数。
+        num_layers （'int'， *optional*， 默认为 1）： 要使用的 Transformer 模块的层数。
+        dropout （'float'， *optional*， 默认为 0.1）：要使用的退出概率。
+        cross_attention_dim （'int'， *可选*）：要使用的上下文维度的数量。
+        sample_size （'int'， *可选*）：如果输入是离散的，则传递。潜在图像的宽度。
+            请注意，这在训练时是固定的，因为它用于学习许多位置嵌入。看
+            'ImagePositionalEmbeddings'。
+        num_vector_embeds （'int'， *可选*）：
+            如果输入是离散的，则传递。潜在像素的向量嵌入的类数。
+            包括被屏蔽的潜在像素的类。
+        activation_fn （'str'， *可选*， 默认为 '“geglu”'）： 用于前馈的激活函数。
+        num_embeds_ada_norm （ 'int'， *optional*）： 如果norm_layers中至少有一个是 'AdaLayerNorm'，则传递。
+            训练期间使用的扩散步骤数。请注意，这在使用时在训练时是固定的
+            了解添加到隐藏状态中的许多嵌入。在推理过程中，您可以对
+            不超过但不超过“num_embeds_ada_norm”的步数。
+        attention_bias （'bool'， *可选*）：
+            配置 TransformerBlocks 的注意力是否应包含偏置参数。
     """
 
     @register_to_config
     def __init__(
-        self,
-        num_attention_heads: int = 16,
-        attention_head_dim: int = 88,
-        in_channels: Optional[int] = None,
-        num_layers: int = 1,
-        dropout: float = 0.0,
-        norm_num_groups: int = 32,
-        cross_attention_dim: Optional[int] = None,
-        attention_bias: bool = False,
-        sample_size: Optional[int] = None,
-        num_vector_embeds: Optional[int] = None,
-        activation_fn: str = "geglu",
-        num_embeds_ada_norm: Optional[int] = None,
+            self,
+            num_attention_heads: int = 16,
+            attention_head_dim: int = 88,
+            in_channels: Optional[int] = None,
+            num_layers: int = 1,
+            dropout: float = 0.0,
+            norm_num_groups: int = 32,
+            cross_attention_dim: Optional[int] = None,
+            attention_bias: bool = False,
+            sample_size: Optional[int] = None,
+            num_vector_embeds: Optional[int] = None,
+            activation_fn: str = "geglu",
+            num_embeds_ada_norm: Optional[int] = None,
     ):
         super().__init__()
         self.num_attention_heads = num_attention_heads
@@ -166,7 +166,8 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         for block in self.transformer_blocks:
             block._set_attention_slice(slice_size)
 
-    def forward(self, hidden_states, encoder_hidden_states=None, timestep=None, attn_map=None, attn_shift=False, obj_ids=None, relationship=None, return_dict: bool = True):
+    def forward(self, hidden_states, encoder_hidden_states=None, timestep=None, attn_map=None, attn_shift=False,
+                obj_ids=None, relationship=None, return_dict: bool = True):
         """
         Args:
             hidden_states ( When discrete, `torch.LongTensor` of shape `(batch size, num latent pixels)`.
@@ -226,27 +227,26 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
 
 class AttentionBlock(nn.Module):
     """
-    An attention block that allows spatial positions to attend to each other. Originally ported from here, but adapted
-    to the N-d case.
+    一个注意力块，允许空间位置相互关注。最初是从这里移植过来的，但进行了改编到N-d情况。
     https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/models/unet.py#L66.
     Uses three q, k, v linear layers to compute attention.
 
     Parameters:
-        channels (`int`): The number of channels in the input and output.
-        num_head_channels (`int`, *optional*):
-            The number of channels in each head. If None, then `num_heads` = 1.
-        norm_num_groups (`int`, *optional*, defaults to 32): The number of groups to use for group norm.
-        rescale_output_factor (`float`, *optional*, defaults to 1.0): The factor to rescale the output by.
-        eps (`float`, *optional*, defaults to 1e-5): The epsilon value to use for group norm.
+        channels （'int'）：输入和输出中的通道数。
+        num_head_channels （'int'， *可选*）：
+            每个磁头中的通道数。如果为 None，则 'num_heads' = 1。
+        norm_num_groups （'int'， *可选*， 默认为 32）：用于组范数的组数。
+        rescale_output_factor （'float'， *可选*， 默认为 1.0）： 调整输出比例的因子。
+        eps （'float'， *可选*， 默认为 1e-5）： 用于组范数的 epsilon 值。
     """
 
     def __init__(
-        self,
-        channels: int,
-        num_head_channels: Optional[int] = None,
-        norm_num_groups: int = 32,
-        rescale_output_factor: float = 1.0,
-        eps: float = 1e-5,
+            self,
+            channels: int,
+            num_head_channels: Optional[int] = None,
+            norm_num_groups: int = 32,
+            rescale_output_factor: float = 1.0,
+            eps: float = 1e-5,
     ):
         super().__init__()
         self.channels = channels
@@ -327,15 +327,15 @@ class BasicTransformerBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        dim: int,
-        num_attention_heads: int,
-        attention_head_dim: int,
-        dropout=0.0,
-        cross_attention_dim: Optional[int] = None,
-        activation_fn: str = "geglu",
-        num_embeds_ada_norm: Optional[int] = None,
-        attention_bias: bool = False,
+            self,
+            dim: int,
+            num_attention_heads: int,
+            attention_head_dim: int,
+            dropout=0.0,
+            cross_attention_dim: Optional[int] = None,
+            activation_fn: str = "geglu",
+            num_embeds_ada_norm: Optional[int] = None,
+            attention_bias: bool = False,
     ):
         super().__init__()
         self.attn1 = CrossAttention(
@@ -418,33 +418,33 @@ class BasicTransformerBlock(nn.Module):
 
 class CrossAttention(nn.Module):
     r"""
-    A cross attention layer.
+    交叉注意力层
 
     Parameters:
-        query_dim (`int`): The number of channels in the query.
-        cross_attention_dim (`int`, *optional*):
-            The number of channels in the context. If not given, defaults to `query_dim`.
-        heads (`int`,  *optional*, defaults to 8): The number of heads to use for multi-head attention.
-        dim_head (`int`,  *optional*, defaults to 64): The number of channels in each head.
-        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
-        bias (`bool`, *optional*, defaults to False):
-            Set to `True` for the query, key, and value linear layers to contain a bias parameter.
+        query_dim （'int'）：查询中的通道数。
+        cross_attention_dim （'int'， *可选*）：
+            上下文中的通道数。如果未给出，则默认为“query_dim”。
+        heads （'int'， *optional*， 默认为 8）：用于多头注意力的头数。
+        dim_head （'int'， *可选*， 默认为 64）： 每个磁头中的通道数。
+        dropout （'float'， *optional*， defaults to 0.0）：要使用的退出概率。
+        bias （'bool'， *可选*， 默认为 False）：
+            将查询、键和值线性层设置为“True”以包含偏差参数。
     """
 
     def __init__(
-        self,
-        query_dim: int,
-        cross_attention_dim: Optional[int] = None,
-        heads: int = 8,
-        dim_head: int = 64,
-        dropout: float = 0.0,
-        bias=False,
+            self,
+            query_dim: int,
+            cross_attention_dim: Optional[int] = None,
+            heads: int = 8,
+            dim_head: int = 64,
+            dropout: float = 0.0,
+            bias=False,
     ):
         super().__init__()
         inner_dim = dim_head * heads
         cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
 
-        self.scale = dim_head**-0.5
+        self.scale = dim_head ** -0.5
         self.heads = heads
         # for slice_size > 0 the attention score computation
         # is split across the batch axis to save memory
@@ -536,12 +536,12 @@ class CrossAttention(nn.Module):
             if query.device.type == "mps":
                 # Better performance on mps (~20-25%)
                 attn_slice = (
-                    torch.einsum("b i d, b j d -> b i j", query[start_idx:end_idx], key[start_idx:end_idx])
-                    * self.scale
+                        torch.einsum("b i d, b j d -> b i j", query[start_idx:end_idx], key[start_idx:end_idx])
+                        * self.scale
                 )
             else:
                 attn_slice = (
-                    torch.matmul(query[start_idx:end_idx], key[start_idx:end_idx].transpose(1, 2)) * self.scale
+                        torch.matmul(query[start_idx:end_idx], key[start_idx:end_idx].transpose(1, 2)) * self.scale
                 )  # TODO: use baddbmm for better performance
             attn_slice = attn_slice.softmax(dim=-1)
             if query.device.type == "mps":
@@ -563,23 +563,22 @@ class CrossAttention(nn.Module):
 
 class FeedForward(nn.Module):
     r"""
-    A feed-forward layer.
+    前馈层
 
     Parameters:
-        dim (`int`): The number of channels in the input.
-        dim_out (`int`, *optional*): The number of channels in the output. If not given, defaults to `dim`.
-        mult (`int`, *optional*, defaults to 4): The multiplier to use for the hidden dimension.
-        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
-        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
-    """
+        dim （'int'）：输入中的通道数。
+        dim_out （'int'， *可选*）： 输出中的通道数。如果未给出，则默认为 'dim'。
+        mult （'int'， *optional*， defaults to 4）： 用于隐藏维度的乘数。
+        dropout （'float'， *optional*， defaults to 0.0）：要使用的退出概率。
+        activation_fn （'str'， *可选*， 默认为 '“geglu”'）： 用于前馈的激活函数。 """
 
     def __init__(
-        self,
-        dim: int,
-        dim_out: Optional[int] = None,
-        mult: int = 4,
-        dropout: float = 0.0,
-        activation_fn: str = "geglu",
+            self,
+            dim: int,
+            dim_out: Optional[int] = None,
+            mult: int = 4,
+            dropout: float = 0.0,
+            activation_fn: str = "geglu",
     ):
         super().__init__()
         inner_dim = int(dim * mult)
