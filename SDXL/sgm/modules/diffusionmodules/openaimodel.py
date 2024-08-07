@@ -503,32 +503,28 @@ class Timestep(nn.Module):
 
 class UNetModel(nn.Module):
     """
-    The full UNet model with attention and timestep embedding.
-    :param in_channels: channels in the input Tensor.
-    :param model_channels: base channel count for the model.
-    :param out_channels: channels in the output Tensor.
-    :param num_res_blocks: number of residual blocks per downsample.
-    :param attention_resolutions: a collection of downsample rates at which
-        attention will take place. May be a set, list, or tuple.
-        For example, if this contains 4, then at 4x downsampling, attention
-        will be used.
-    :param dropout: the dropout probability.
-    :param channel_mult: channel multiplier for each level of the UNet.
-    :param conv_resample: if True, use learned convolutions for upsampling and
-        downsampling.
-    :param dims: determines if the signal is 1D, 2D, or 3D.
-    :param num_classes: if specified (as an int), then this model will be
-        class-conditional with `num_classes` classes.
-    :param use_checkpoint: use gradient checkpointing to reduce memory usage.
-    :param num_heads: the number of attention heads in each attention layer.
-    :param num_heads_channels: if specified, ignore num_heads and instead use
-                               a fixed channel width per attention head.
-    :param num_heads_upsample: works with num_heads to set a different number
-                               of heads for upsampling. Deprecated.
-    :param use_scale_shift_norm: use a FiLM-like conditioning mechanism.
-    :param resblock_updown: use residual blocks for up/downsampling.
-    :param use_new_attention_order: use a different attention pattern for potentially
-                                    increased efficiency.
+    具有注意力和时间步长嵌入的完整 UNet 模型。
+    :param in_channels：输入张量中的通道。
+    :param model_channels：模型的基本通道数。
+    :param out_channels：输出张量中的通道。
+    :param num_res_blocks：每个下采样的残差块数。
+    :param attention_resolutions：下采样率的集合，其中
+        注意力将会发生。可以是集合、列表或元组。
+        例如，如果这包含 4，则在 4 倍下采样时，注意将被使用。
+    :param dropout：辍学概率。
+    :param channel_mult：UNet 每个级别的通道乘数。
+    :param conv_resample：如果为 True，则使用学习到的卷积进行上采样和下采样。
+    :param dims：确定信号是 1D、2D 还是 3D。
+    :param num_classes：如果指定（作为 int），那么这个模型将是带有“num_classes”类的类条件。
+    :param use_checkpoint：使用梯度检查点来减少内存使用。
+    :param num_heads：每个注意力层中的注意力头数。
+    :param num_heads_channels：如果指定，请忽略num_heads，改为使用
+                               每个注意头的固定通道宽度。
+    :param num_heads_upsample：与num_heads配合使用设置不同的数字
+                               用于上采样的水头。荒废的。
+    :param use_scale_shift_norm：使用类似 FiLM 的调节机制。
+    :param resblock_updown：使用残差模块进行上采样/下采样。
+    :param use_new_attention_order：使用不同的注意力模式来潜在提高效率。
     """
 
     def __init__(

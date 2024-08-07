@@ -1,7 +1,7 @@
 general:
   save_path:  './example_output/real_image_editing'
   model_path: 'runwayml/stable-diffusion-v1-5'
-  unet_config: './conf/unet/config.json'
+  unet_config: './conf/unet/sd_config.json'
   seed: 0
 
 text_inversion:

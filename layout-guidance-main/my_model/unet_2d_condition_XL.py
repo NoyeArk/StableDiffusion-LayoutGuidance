@@ -92,30 +92,28 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             flip_sin_to_cos: bool = True,
             freq_shift: int = 0,
             down_block_types: Tuple[str] = (
-                "CrossAttnDownBlock2D",
-                "CrossAttnDownBlock2D",
-                "CrossAttnDownBlock2D",
                 "DownBlock2D",
+                "CrossAttnDownBlock2D",
+                "CrossAttnDownBlock2D"
             ),
             up_block_types: Tuple[str] = (
-                "UpBlock2D",
                 "CrossAttnUpBlock2D",
                 "CrossAttnUpBlock2D",
-                "CrossAttnUpBlock2D"
+                "UpBlock2D"
             ),
-            block_out_channels: Tuple[int] = (320, 640, 1280, 1280),
+            block_out_channels: Tuple[int] = (320, 640, 1280),
             layers_per_block: int = 2,
             downsample_padding: int = 1,
             mid_block_scale_factor: float = 1,
             act_fn: str = "silu",
             norm_num_groups: int = 32,
             norm_eps: float = 1e-5,
-            cross_attention_dim: int = 1280,
-            attention_head_dim: int = 8,
+            cross_attention_dim: int = 2048,
+            attention_head_dim: list = (5, 10, 20),
     ):
         super().__init__()
 
-        print(f'接收到的attention_head_dim为{attention_head_dim}')
+        print(f'接收到的attention_head_dim1111为{attention_head_dim}')
 
         self.sample_size = sample_size
         time_embed_dim = block_out_channels[0] * 4

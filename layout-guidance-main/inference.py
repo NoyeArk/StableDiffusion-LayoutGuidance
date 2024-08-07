@@ -6,10 +6,10 @@ from PIL import Image
 from tqdm import tqdm
 from omegaconf import OmegaConf
 from utils import load_text_inversion
-from my_model import unet_2d_condition
+from my_model import unet_2d_condition, unet_2d_condition_XL
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, LMSDiscreteScheduler
-from utils import compute_ca_loss, Pharse2idx, draw_box, setup_logger
+from utils import compute_ca_loss, Phrase2idx, draw_box, setup_logger
 
 
 def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrases, cfg, logger):
@@ -17,12 +17,11 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
     logger.info(f"Prompt: {prompt}")
     logger.info(f"Phrases: {phrases}")
 
-    # Get Object Positions
-
+    # 获取对象位置
     logger.info("Convert Phrases to Object Positions")
-    object_positions = Pharse2idx(prompt, phrases)
+    object_positions = Phrase2idx(prompt, phrases)
 
-    # Encode Classifier Embeddings
+    # 编码分类器嵌入
     uncond_input = tokenizer(
         [""] * cfg.inference.batch_size, padding="max_length", max_length=tokenizer.model_max_length,
         return_tensors="pt"
@@ -40,7 +39,9 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
     cond_embeddings = text_encoder(input_ids.input_ids.to(device))[0]
     text_embeddings = torch.cat([uncond_embeddings, cond_embeddings])
-    generator = torch.manual_seed(cfg.inference.rand_seed)  # Seed generator to create the initial latent noise
+
+    # 种子生成器，用于产生初始潜在噪声
+    generator = torch.manual_seed(cfg.inference.rand_seed)
 
     noise_scheduler = LMSDiscreteScheduler(beta_start=cfg.noise_schedule.beta_start,
                                            beta_end=cfg.noise_schedule.beta_end,
@@ -65,26 +66,36 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
             latents = latents.requires_grad_(True)
             latent_model_input = latents
             latent_model_input = noise_scheduler.scale_model_input(latent_model_input, t)
+
+            # 使用unet进行预测，得到预测的噪声和注意力图
             noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
                 unet(latent_model_input, t, encoder_hidden_states=cond_embeddings)
 
             # update latents with guidance
             loss = compute_ca_loss(attn_map_integrated_mid, attn_map_integrated_up, bboxes=bboxes,
-                                   object_positions=object_positions) * cfg.inference.loss_scale
+                                   object_positions=object_positions) * cfg.inference.loss_scal
 
+            # 使用自动求导机制计算损失对 latents 的梯度
             grad_cond = torch.autograd.grad(loss.requires_grad_(True), [latents])[0]
 
+            # 根据计算出的梯度和噪声调度器的参数更新 latents
             latents = latents - grad_cond * noise_scheduler.sigmas[index] ** 2
             iteration += 1
+
+            # 清理 CUDA 缓存以释放内存
             torch.cuda.empty_cache()
 
+        # 禁用梯度计算
         with torch.no_grad():
+            # 将 latents 张量复制一份并拼接在一起，形成一个新的张量 latent_model_input
             latent_model_input = torch.cat([latents] * 2)
 
+            # 对输入进行缩放
             latent_model_input = noise_scheduler.scale_model_input(latent_model_input, t)
             noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
                 unet(latent_model_input, t, encoder_hidden_states=text_embeddings)
 
+            # 获得噪声预测样本
             noise_pred = noise_pred.sample
 
             # perform guidance
@@ -111,8 +122,14 @@ def main(cfg):
     # build and load model
     with open(cfg.general.unet_config) as f:
         unet_config = json.load(f)
+
+    print('inference中main初始化')
+    from diffusers.models.unets import unet_2d_condition
+    # unet = unet_2d_condition_XL.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
+    #                                                                                 subfolder="unet")
     unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
-                                                                                 subfolder="unet")
+                                                                                    subfolder="unet")
+    print('+++++++++++++++++++++++++')
     tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
@@ -129,14 +146,14 @@ def main(cfg):
     text_encoder.to(device)
     vae.to(device)
 
-    # ------------------ example input ------------------
+    # ------------------ 示例输入 ------------------
     examples = {"prompt": "A hello kitty toy is playing with a purple ball.",
                 "phrases": "hello kitty; ball",
                 "bboxes": [[[0.1, 0.2, 0.5, 0.8]], [[0.75, 0.6, 0.95, 0.8]]],
                 'save_path': cfg.general.save_path
                 }
 
-    # ------------------ real image editing example input ------------------
+    # ------------------ 真实图像编辑示例输入 ------------------
     if cfg.general.real_image_editing:
         examples = {"prompt": "A {} is standing on grass.".format(cfg.real_image_editing.placeholder_token),
                     "phrases": "{}".format(cfg.real_image_editing.placeholder_token),
@@ -144,7 +161,8 @@ def main(cfg):
                     'save_path': cfg.general.save_path
                     }
     # ---------------------------------------------------
-    # Prepare the save path
+
+    # 准备保存路径
     if not os.path.exists(cfg.general.save_path):
         os.makedirs(cfg.general.save_path)
     logger = setup_logger(cfg.general.save_path, __name__)
@@ -154,11 +172,11 @@ def main(cfg):
     logger.info("save config to {}".format(os.path.join(cfg.general.save_path, 'config.yaml')))
     OmegaConf.save(cfg, os.path.join(cfg.general.save_path, 'config.yaml'))
 
-    # Inference
+    # 推理
     pil_images = inference(device, unet, vae, tokenizer, text_encoder, examples['prompt'], examples['bboxes'],
                            examples['phrases'], cfg, logger)
 
-    # Save example images
+    # 保存示例图片
     for index, pil_image in enumerate(pil_images):
         image_path = os.path.join(cfg.general.save_path, 'example_{}.png'.format(index))
         logger.info('save example image to {}'.format(image_path))

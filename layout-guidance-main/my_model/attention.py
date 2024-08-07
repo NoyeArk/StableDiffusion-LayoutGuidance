@@ -20,7 +20,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.modeling_utils import ModelMixin
+from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.embeddings import ImagePositionalEmbeddings
 from diffusers.utils import BaseOutput
 from diffusers.utils.import_utils import is_xformers_available
@@ -314,16 +314,16 @@ class BasicTransformerBlock(nn.Module):
     A basic Transformer block.
 
     Parameters:
-        dim (`int`): The number of channels in the input and output.
-        num_attention_heads (`int`): The number of heads to use for multi-head attention.
-        attention_head_dim (`int`): The number of channels in each head.
-        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
-        cross_attention_dim (`int`, *optional*): The size of the context vector for cross attention.
-        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
-        num_embeds_ada_norm (:
-            obj: `int`, *optional*): The number of diffusion steps used during training. See `Transformer2DModel`.
-        attention_bias (:
-            obj: `bool`, *optional*, defaults to `False`): Configure if the attentions should contain a bias parameter.
+        dim （'int'）：输入和输出中的通道数。
+        num_attention_heads （'int'）：用于多头注意力的头部数量。
+        attention_head_dim （'int'）：每个磁头中的通道数。
+        dropout （'float'， *optional*， defaults to 0.0）：要使用的退出概率。
+        cross_attention_dim （'int'， *可选*）：交叉注意力的上下文向量的大小。
+        activation_fn （'str'， *可选*， 默认为 '“geglu”'）： 用于前馈的激活函数。
+        num_embeds_ada_norm （：
+            obj： 'int'， *optional*）： 训练期间使用的扩散步骤数。请参阅“Transformer2DModel”。
+        attention_bias （：
+            obj： 'bool'， *可选*， 默认为 'False'）： 配置注意是否应包含偏差参数。
     """
 
     def __init__(

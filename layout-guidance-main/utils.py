@@ -13,14 +13,12 @@ def compute_ca_loss(attn_maps_mid, attn_maps_up, bboxes, object_positions):
     for attn_map_integrated in attn_maps_mid:
         attn_map = attn_map_integrated
 
-        #
         b, i, j = attn_map.shape
         H = W = int(math.sqrt(i))
         for obj_idx in range(object_number):
             obj_loss = 0
             mask = torch.zeros(size=(H, W)).cuda() if torch.cuda.is_available() else torch.zeros(size=(H, W))
             for obj_box in bboxes[obj_idx]:
-
                 x_min, y_min, x_max, y_max = int(obj_box[0] * W), \
                     int(obj_box[1] * H), int(obj_box[2] * W), int(obj_box[3] * H)
                 mask[y_min: y_max, x_min: x_max] = 1
@@ -28,10 +26,11 @@ def compute_ca_loss(attn_maps_mid, attn_maps_up, bboxes, object_positions):
             for obj_position in object_positions[obj_idx]:
                 ca_map_obj = attn_map[:, :, obj_position].reshape(b, H, W)
 
-                activation_value = (ca_map_obj * mask).reshape(b, -1).sum(dim=-1)/ca_map_obj.reshape(b, -1).sum(dim=-1)
+                activation_value = (ca_map_obj * mask).reshape(b, -1).sum(dim=-1) / ca_map_obj.reshape(b, -1).sum(
+                    dim=-1)
 
                 obj_loss += torch.mean((1 - activation_value) ** 2)
-            loss += (obj_loss/len(object_positions[obj_idx]))
+            loss += (obj_loss / len(object_positions[obj_idx]))
 
     for attn_map_integrated in attn_maps_up[0]:
         attn_map = attn_map_integrated
@@ -59,7 +58,9 @@ def compute_ca_loss(attn_maps_mid, attn_maps_up, bboxes, object_positions):
     loss = loss / (object_number * (len(attn_maps_up[0]) + len(attn_maps_mid)))
     return loss
 
-def Pharse2idx(prompt, phrases):
+
+def Phrase2idx(prompt, phrases):
+    """找到 phrases 中每个短语（由分号分隔）内的单词在 prompt 文本中首次出现的位置（索引），并将这些索引作为列表返回"""
     phrases = [x.strip() for x in phrases.split(';')]
     prompt_list = prompt.strip('.').split(' ')
     object_positions = []
@@ -72,6 +73,7 @@ def Pharse2idx(prompt, phrases):
 
     return object_positions
 
+
 def draw_box(pil_img, bboxes, phrases, save_path):
     draw = ImageDraw.Draw(pil_img)
     font = ImageFont.truetype('./FreeMono.ttf', 25)
@@ -82,7 +84,6 @@ def draw_box(pil_img, bboxes, phrases, save_path):
             draw.rectangle([int(x_0 * 512), int(y_0 * 512), int(x_1 * 512), int(y_1 * 512)], outline='red', width=5)
             draw.text((int(x_0 * 512) + 5, int(y_0 * 512) + 5), phrase, font=font, fill=(255, 0, 0))
     pil_img.save(save_path)
-
 
 
 def setup_logger(save_path, logger_name):
@@ -103,6 +104,7 @@ def setup_logger(save_path, logger_name):
     logger.addHandler(file_handler)
 
     return logger
+
 
 def load_text_inversion(text_encoder, tokenizer, placeholder_token, embedding_ckp_path):
     num_added_tokens = tokenizer.add_tokens(placeholder_token)
