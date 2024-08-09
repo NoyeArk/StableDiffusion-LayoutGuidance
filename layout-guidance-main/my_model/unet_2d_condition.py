@@ -33,7 +33,6 @@ from .unet_2d_blocks import (
     get_up_block,
 )
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -92,16 +91,16 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             flip_sin_to_cos: bool = True,
             freq_shift: int = 0,
             down_block_types: Tuple[str] = (
-                "CrossAttnDownBlock2D",
-                "CrossAttnDownBlock2D",
-                "CrossAttnDownBlock2D",
-                "DownBlock2D",
+                    "CrossAttnDownBlock2D",
+                    "CrossAttnDownBlock2D",
+                    "CrossAttnDownBlock2D",
+                    "DownBlock2D",
             ),
             up_block_types: Tuple[str] = (
-                "UpBlock2D",
-                "CrossAttnUpBlock2D",
-                "CrossAttnUpBlock2D",
-                "CrossAttnUpBlock2D"
+                    "UpBlock2D",
+                    "CrossAttnUpBlock2D",
+                    "CrossAttnUpBlock2D",
+                    "CrossAttnUpBlock2D"
             ),
             block_out_channels: Tuple[int] = (320, 640, 1280, 1280),
             layers_per_block: int = 2,
@@ -213,7 +212,6 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
         print('*********************')
 
-
     def set_attention_slice(self, slice_size):
         if slice_size is not None and self.config.attention_head_dim % slice_size != 0:
             raise ValueError(
@@ -275,7 +273,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         # 总体上采样因子等于 2 **（# 上采样年数）。
         # 但是，可以强制上采样插值输出大小以适应任何上采样大小
         # 如有必要，即时提供。
-        default_overall_up_factor = 2**self.num_upsamplers
+        default_overall_up_factor = 2 ** self.num_upsamplers
 
         # 当样本不是 'default_overall_up_factor' 的倍数时，应转发 upsample 大小
         forward_upsample_size = False
@@ -335,7 +333,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
 
-            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
+            res_samples = down_block_res_samples[-len(upsample_block.resnets):]
             down_block_res_samples = down_block_res_samples[: -len(upsample_block.resnets)]
 
             # if we have not reached the final block and need to forward the
