@@ -1,5 +1,5 @@
 import torch
-from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionXLImg2ImgPipeline, StableDiffusionXLControlNetPipeline
 
 if __name__ == '__main__':
     pipe = StableDiffusionXLPipeline.from_pretrained(
@@ -14,6 +14,4 @@ if __name__ == '__main__':
 
     images = pipe(prompt=prompt, output_type="latent").images[0]
     images = refiner(prompt=prompt, image=images).images
-
-
 

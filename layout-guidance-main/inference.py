@@ -6,7 +6,7 @@ from PIL import Image
 from tqdm import tqdm
 from omegaconf import OmegaConf
 from utils import load_text_inversion
-from my_model import unet_2d_condition, unet_2d_condition_XL
+from my_model import unet_2d_condition
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, LMSDiscreteScheduler
 from utils import compute_ca_loss, Phrase2idx, draw_box, setup_logger
@@ -28,7 +28,7 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
     )
     uncond_embeddings = text_encoder(uncond_input.input_ids.to(device))[0]
 
-    # Encode Prompt
+    # 编码提示词
     input_ids = tokenizer(
         [prompt] * cfg.inference.batch_size,
         padding="max_length",
@@ -69,9 +69,9 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
             # 使用unet进行预测，得到预测的噪声和注意力图
             noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
-                unet(latent_model_input, t, encoder_hidden_states=cond_embeddings)
+                unet(latent_model_input, t, encoder_hidden_states=cond_embeddings, added_cond_kwargs=added_cond_kwargs)
 
-            # update latents with guidance
+            # 使用指导更新潜伏物
             loss = compute_ca_loss(attn_map_integrated_mid, attn_map_integrated_up, bboxes=bboxes,
                                    object_positions=object_positions) * cfg.inference.loss_scal
 

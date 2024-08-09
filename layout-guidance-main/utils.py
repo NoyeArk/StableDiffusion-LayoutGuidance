@@ -1,8 +1,8 @@
-import torch
-import math
-from PIL import Image, ImageDraw, ImageFont
-import logging
 import os
+import math
+import torch
+import logging
+from PIL import Image, ImageDraw, ImageFont
 
 
 def compute_ca_loss(attn_maps_mid, attn_maps_up, bboxes, object_positions):
