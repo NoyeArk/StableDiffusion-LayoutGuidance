@@ -26,7 +26,7 @@ def main(cfg):
     # tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
     # text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
-    #
+
     # if cfg.general.real_image_editing:
     #     text_encoder, tokenizer = load_text_inversion(text_encoder, tokenizer, cfg.real_image_editing.placeholder_token,
     #                                                   cfg.real_image_editing.text_inversion_path)
@@ -34,7 +34,7 @@ def main(cfg):
     #     text_encoder.load_state_dict(torch.load(cfg.real_image_editing.dreambooth_path)['encoder'])
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #
+
     # unet.to(device)
     # text_encoder.to(device)
     vae.to(device)
@@ -68,7 +68,7 @@ def main(cfg):
     pipe = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
-    pipe.to("cuda")
+    pipe.to("cuda:7")
 
     # 推理
     pil_images = pipe(

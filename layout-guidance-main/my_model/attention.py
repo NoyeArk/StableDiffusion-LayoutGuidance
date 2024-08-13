@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
-from dataclasses import dataclass
-from typing import Optional
-import numpy as np
-import torch
-import torch.nn.functional as F
-from torch import nn
 
-from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.models.modeling_utils import ModelMixin
-from diffusers.models.embeddings import ImagePositionalEmbeddings
+import math
+import torch
+from torch import nn
+from typing import Optional
+import torch.nn.functional as F
+from dataclasses import dataclass
+
 from diffusers.utils import BaseOutput
+from diffusers.models.modeling_utils import ModelMixin
 from diffusers.utils.import_utils import is_xformers_available
+from diffusers.models.embeddings import ImagePositionalEmbeddings
+from diffusers.configuration_utils import ConfigMixin, register_to_config
 
 
 @dataclass

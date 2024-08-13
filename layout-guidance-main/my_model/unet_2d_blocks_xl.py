@@ -34,7 +34,7 @@ from diffusers.models.resnet import (
     Upsample2D,
 )
 from diffusers.models.transformers.dual_transformer_2d import DualTransformer2DModel
-from diffusers.models.transformers.transformer_2d import Transformer2DModel
+from attention_xl import Transformer2DModel
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -1247,12 +1247,13 @@ class CrossAttnDownBlock2D(nn.Module):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         encoder_attention_mask: Optional[torch.Tensor] = None,
         additional_residuals: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
+    ):
         if cross_attention_kwargs is not None:
             if cross_attention_kwargs.get("scale", None) is not None:
                 logger.warning("Passing `scale` to `cross_attention_kwargs` is deprecated. `scale` will be ignored.")
 
         output_states = ()
+        cross_attn_prob_list = []
 
         blocks = list(zip(self.resnets, self.attentions))
 
@@ -1285,7 +1286,7 @@ class CrossAttnDownBlock2D(nn.Module):
                 )[0]
             else:
                 hidden_states = resnet(hidden_states, temb)
-                hidden_states = attn(
+                hidden_states, cross_attn_prob = attn(
                     hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
                     cross_attention_kwargs=cross_attention_kwargs,
@@ -1299,6 +1300,7 @@ class CrossAttnDownBlock2D(nn.Module):
                 hidden_states = hidden_states + additional_residuals
 
             output_states = output_states + (hidden_states,)
+            cross_attn_prob_list.append(cross_attn_prob)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
@@ -1306,7 +1308,7 @@ class CrossAttnDownBlock2D(nn.Module):
 
             output_states = output_states + (hidden_states,)
 
-        return hidden_states, output_states
+        return hidden_states, output_states, cross_attn_prob_list
 
 
 class DownBlock2D(nn.Module):
