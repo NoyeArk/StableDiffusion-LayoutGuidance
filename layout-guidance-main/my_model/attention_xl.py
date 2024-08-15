@@ -31,7 +31,7 @@ from diffusers.models.attention_processor import SpatialNorm, AttnProcessor2_0, 
         AttnProcessorNPU, CustomDiffusionAttnProcessor, CustomDiffusionXFormersAttnProcessor, \
         CustomDiffusionAttnProcessor2_0, AttnAddedKVProcessor, AttnAddedKVProcessor2_0, SlicedAttnAddedKVProcessor, \
         XFormersAttnAddedKVProcessor, XFormersAttnProcessor, SlicedAttnProcessor
-
+from diffusers.models.activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, SwiGLU
 
 logger = logging.get_logger(__name__)
 
@@ -506,7 +506,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             )
 
         if not return_dict:
-            return (output,)
+            return output, cross_attn_prob
 
         return Transformer2DModelOutput(sample=output), cross_attn_prob
 
@@ -899,14 +899,12 @@ class Attention(nn.Module):
             self.norm_added_q = None
             self.norm_added_k = None
 
-        # set attention processor
-        # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
-        # torch.nn.functional.scaled_dot_product_attention for native Flash/memory_efficient_attention
-        # but only if it has the default `scale` argument. TODO remove scale_qk check when we move to torch 2.1
+        # 设置注意力处理器
+        # 我们在使用 torch 2.x 时默认使用 AttnProcessor2_0，它使用
+        # 原生 Flash/memory_efficient_attention 的torch.nn.functional.scaled_dot_product_attention
+        # 但前提是它有默认的 'scale' 参数。当我们移动到 Torch 2.1 时，请删除scale_qk检查
         if processor is None:
-            processor = (
-                AttnProcessor2_0() if hasattr(F, "scaled_dot_product_attention") and self.scale_qk else AttnProcessor()
-            )
+            processor = AttnProcessor()
         self.set_processor(processor)
 
     def set_use_npu_flash_attention(self, use_npu_flash_attention: bool) -> None:
@@ -1101,7 +1099,7 @@ class Attention(nn.Module):
         encoder_hidden_states: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         **cross_attention_kwargs,
-    ) -> torch.Tensor:
+    ) -> tuple[float | Any, Tensor]:
         r"""
         The forward method of the `Attention` class.
 
@@ -1360,7 +1358,7 @@ class Attention(nn.Module):
 
 class AttnProcessor:
     r"""
-    Default processor for performing attention-related computations.
+    用于执行注意力相关计算的默认处理器。
     """
 
     def __call__(
@@ -1380,6 +1378,7 @@ class AttnProcessor:
                                    "attention_kwargs`.")
             deprecate("scale", "1.0.0", deprecation_message)
 
+        hidden_states = hidden_states.float()
         residual = hidden_states
 
         if attn.spatial_norm is not None:
@@ -1406,12 +1405,12 @@ class AttnProcessor:
         elif attn.norm_cross:
             encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
 
-        key = attn.to_k(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states)
+        key = attn.to_k(encoder_hidden_states.float())
+        value = attn.to_v(encoder_hidden_states.float())
 
-        query = attn.head_to_batch_dim(query)
-        key = attn.head_to_batch_dim(key)
-        value = attn.head_to_batch_dim(value)
+        query = attn.head_to_batch_dim(query.float())
+        key = attn.head_to_batch_dim(key.float())
+        value = attn.head_to_batch_dim(value.float())
 
         attention_probs = attn.get_attention_scores(query, key, attention_mask)
         hidden_states = torch.bmm(attention_probs, value)
@@ -1911,85 +1910,63 @@ class CrossAttention(nn.Module):
 
 class FeedForward(nn.Module):
     r"""
-    前馈层
+    A feed-forward layer.
 
     Parameters:
-        dim （'int'）：输入中的通道数。
-        dim_out （'int'， *可选*）： 输出中的通道数。如果未给出，则默认为 'dim'。
-        mult （'int'， *optional*， defaults to 4）： 用于隐藏维度的乘数。
-        dropout （'float'， *optional*， defaults to 0.0）：要使用的退出概率。
-        activation_fn （'str'， *可选*， 默认为 '“geglu”'）： 用于前馈的激活函数。 """
+        dim (`int`): The number of channels in the input.
+        dim_out (`int`, *optional*): The number of channels in the output. If not given, defaults to `dim`.
+        mult (`int`, *optional*, defaults to 4): The multiplier to use for the hidden dimension.
+        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
+        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
+        final_dropout (`bool` *optional*, defaults to False): Apply a final dropout.
+        bias (`bool`, defaults to True): Whether to use a bias in the linear layer.
+    """
 
     def __init__(
-            self,
-            dim: int,
-            dim_out: Optional[int] = None,
-            mult: int = 4,
-            dropout: float = 0.0,
-            activation_fn: str = "geglu",
+        self,
+        dim: int,
+        dim_out: Optional[int] = None,
+        mult: int = 4,
+        dropout: float = 0.0,
+        activation_fn: str = "geglu",
+        final_dropout: bool = False,
+        inner_dim=None,
+        bias: bool = True,
     ):
         super().__init__()
-        inner_dim = int(dim * mult)
+        if inner_dim is None:
+            inner_dim = int(dim * mult)
         dim_out = dim_out if dim_out is not None else dim
 
-        if activation_fn == "geglu":
-            geglu = GEGLU(dim, inner_dim)
+        if activation_fn == "gelu":
+            act_fn = GELU(dim, inner_dim, bias=bias)
+        if activation_fn == "gelu-approximate":
+            act_fn = GELU(dim, inner_dim, approximate="tanh", bias=bias)
+        elif activation_fn == "geglu":
+            act_fn = GEGLU(dim, inner_dim, bias=bias)
         elif activation_fn == "geglu-approximate":
-            geglu = ApproximateGELU(dim, inner_dim)
+            act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
+        elif activation_fn == "swiglu":
+            act_fn = SwiGLU(dim, inner_dim, bias=bias)
 
         self.net = nn.ModuleList([])
         # project in
-        self.net.append(geglu)
+        self.net.append(act_fn)
         # project dropout
         self.net.append(nn.Dropout(dropout))
         # project out
-        self.net.append(nn.Linear(inner_dim, dim_out))
+        self.net.append(nn.Linear(inner_dim, dim_out, bias=bias))
+        # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
+        if final_dropout:
+            self.net.append(nn.Dropout(dropout))
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        if len(args) > 0 or kwargs.get("scale", None) is not None:
+            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
+            deprecate("scale", "1.0.0", deprecation_message)
         for module in self.net:
             hidden_states = module(hidden_states)
         return hidden_states
-
-
-# feedforward
-class GEGLU(nn.Module):
-    r"""
-    A variant of the gated linear unit activation function from https://arxiv.org/abs/2002.05202.
-
-    Parameters:
-        dim_in (`int`): The number of channels in the input.
-        dim_out (`int`): The number of channels in the output.
-    """
-
-    def __init__(self, dim_in: int, dim_out: int):
-        super().__init__()
-        self.proj = nn.Linear(dim_in, dim_out * 2)
-
-    def gelu(self, gate):
-        if gate.device.type != "mps":
-            return F.gelu(gate)
-        # mps: gelu is not implemented for float16
-        return F.gelu(gate.to(dtype=torch.float32)).to(dtype=gate.dtype)
-
-    def forward(self, hidden_states):
-        hidden_states, gate = self.proj(hidden_states).chunk(2, dim=-1)
-        return hidden_states * self.gelu(gate)
-
-
-class ApproximateGELU(nn.Module):
-    """
-    The approximate form of Gaussian Error Linear Unit (GELU)
-
-    For more details, see section 2: https://arxiv.org/abs/1606.08415
-    """
-
-    def __init__(self, dim_in: int, dim_out: int):
-        super().__init__()
-        self.proj = nn.Linear(dim_in, dim_out)
-
-    def forward(self, x):
-        x = self.proj(x)
-        return x * torch.sigmoid(1.702 * x)
 
 
 class AdaLayerNorm(nn.Module):

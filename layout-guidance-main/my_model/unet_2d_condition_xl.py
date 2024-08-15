@@ -45,7 +45,7 @@ from diffusers.models.embeddings import (
     Timesteps,
 )
 from diffusers.models.modeling_utils import ModelMixin
-from unet_2d_blocks_xl import (
+from my_model.unet_2d_blocks_xl import (
     get_down_block,
     get_mid_block,
     get_up_block,
@@ -225,6 +225,8 @@ class UNet2DConditionModel(
         addition_embed_type_num_heads: int = 64,
     ):
         super().__init__()
+
+        print('自定义的Unet2dConditionModel')
 
         self.sample_size = sample_size
 
@@ -1138,7 +1140,7 @@ class UNet2DConditionModel(
             sample = 2 * sample - 1.0
 
         # 1. time
-        t_emb = self.get_time_embed(sample=sample, timestep=timestep)
+        t_emb = self.get_time_embed(sample=sample, timestep=timestep).float()
         emb = self.time_embedding(t_emb, timestep_cond)
         aug_emb = None
 
@@ -1148,9 +1150,6 @@ class UNet2DConditionModel(
                 emb = torch.cat([emb, class_emb], dim=-1)
             else:
                 emb = emb + class_emb
-        print(self.config)
-        print('------------------')
-        print(added_cond_kwargs)
         aug_emb = self.get_aug_embed(
             emb=emb, encoder_hidden_states=encoder_hidden_states, added_cond_kwargs=added_cond_kwargs
         )
@@ -1168,7 +1167,7 @@ class UNet2DConditionModel(
         )
 
         # 2. pre-process
-        sample = self.conv_in(sample)
+        sample = self.conv_in(sample.float())
 
         # 2.5 GLIGEN position net
         if cross_attention_kwargs is not None and cross_attention_kwargs.get("gligen", None) is not None:
@@ -1179,6 +1178,8 @@ class UNet2DConditionModel(
         # 3. down
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the internal blocks and will raise deprecation warnings. this will be confusing for our users.
+        attn_down = []
+
         if cross_attention_kwargs is not None:
             cross_attention_kwargs = cross_attention_kwargs.copy()
             lora_scale = cross_attention_kwargs.pop("scale", 1.0)
@@ -1215,7 +1216,7 @@ class UNet2DConditionModel(
                 if is_adapter and len(down_intrablock_additional_residuals) > 0:
                     additional_residuals["additional_residuals"] = down_intrablock_additional_residuals.pop(0)
 
-                sample, res_samples = downsample_block(
+                sample, res_samples, cross_atten_prob = downsample_block(
                     hidden_states=sample,
                     temb=emb,
                     encoder_hidden_states=encoder_hidden_states,
@@ -1224,6 +1225,7 @@ class UNet2DConditionModel(
                     encoder_attention_mask=encoder_attention_mask,
                     **additional_residuals,
                 )
+                attn_down.append(cross_atten_prob)
             else:
                 sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
                 if is_adapter and len(down_intrablock_additional_residuals) > 0:
@@ -1245,7 +1247,7 @@ class UNet2DConditionModel(
         # 4. mid
         if self.mid_block is not None:
             if hasattr(self.mid_block, "has_cross_attention") and self.mid_block.has_cross_attention:
-                sample = self.mid_block(
+                sample, attn_mid = self.mid_block(
                     sample,
                     emb,
                     encoder_hidden_states=encoder_hidden_states,
@@ -1254,7 +1256,7 @@ class UNet2DConditionModel(
                     encoder_attention_mask=encoder_attention_mask,
                 )
             else:
-                sample = self.mid_block(sample, emb)
+                sample, attn_mid = self.mid_block(sample, emb)
 
             # To support T2I-Adapter-XL
             if (
@@ -1272,16 +1274,15 @@ class UNet2DConditionModel(
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
 
-            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
+            res_samples = down_block_res_samples[-len(upsample_block.resnets):]
             down_block_res_samples = down_block_res_samples[: -len(upsample_block.resnets)]
 
-            # if we have not reached the final block and need to forward the
-            # upsample size, we do it here
+            # 如果我们还没有到达最后一个块，并且需要转发 upsample 大小，我们在这里进行
             if not is_final_block and forward_upsample_size:
                 upsample_size = down_block_res_samples[-1].shape[2:]
 
             if hasattr(upsample_block, "has_cross_attention") and upsample_block.has_cross_attention:
-                sample = upsample_block(
+                sample, cross_atten_prob = upsample_block(
                     hidden_states=sample,
                     temb=emb,
                     res_hidden_states_tuple=res_samples,
@@ -1291,7 +1292,7 @@ class UNet2DConditionModel(
                     attention_mask=attention_mask,
                     encoder_attention_mask=encoder_attention_mask,
                 )
-                # attn_up.append(cro)
+                attn_up.append(cross_atten_prob)
             else:
                 sample = upsample_block(
                     hidden_states=sample,
@@ -1311,6 +1312,6 @@ class UNet2DConditionModel(
             unscale_lora_layers(self, lora_scale)
 
         if not return_dict:
-            return (sample,)
+            return sample, attn_up, attn_mid, attn_down
 
-        return UNet2DConditionOutput(sample=sample)
+        return UNet2DConditionOutput(sample=sample), attn_up, attn_mid, attn_down

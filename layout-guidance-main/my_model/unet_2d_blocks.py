@@ -602,6 +602,7 @@ class CrossAttnDownBlock2D(nn.Module):
                     create_custom_forward(attn, return_dict=False), hidden_states, encoder_hidden_states
                 )[0]
             else:
+                print('hidden_states.shape:', hidden_states.shape)
                 hidden_states = resnet(hidden_states, temb)
                 tmp_hidden_states, cross_attn_prob = attn(hidden_states, encoder_hidden_states=encoder_hidden_states)
                 hidden_states = tmp_hidden_states.sample

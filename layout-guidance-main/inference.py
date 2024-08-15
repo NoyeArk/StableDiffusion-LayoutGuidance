@@ -69,11 +69,11 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
             # 使用unet进行预测，得到预测的噪声和注意力图
             noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
-                unet(latent_model_input, t, encoder_hidden_states=cond_embeddings, added_cond_kwargs=added_cond_kwargs)
+                unet(latent_model_input, t, encoder_hidden_states=cond_embeddings)
 
             # 使用指导更新潜伏物
             loss = compute_ca_loss(attn_map_integrated_mid, attn_map_integrated_up, bboxes=bboxes,
-                                   object_positions=object_positions) * cfg.inference.loss_scal
+                                   object_positions=object_positions) * cfg.inference.loss_scale
 
             # 使用自动求导机制计算损失对 latents 的梯度
             grad_cond = torch.autograd.grad(loss.requires_grad_(True), [latents])[0]
@@ -123,13 +123,7 @@ def main(cfg):
     with open(cfg.general.unet_config) as f:
         unet_config = json.load(f)
 
-    print('inference中main初始化')
-    from diffusers.models.unets import unet_2d_condition
-    # unet = unet_2d_condition_XL.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
-    #                                                                                 subfolder="unet")
-    unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
-                                                                                    subfolder="unet")
-    print('+++++++++++++++++++++++++')
+    unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
     tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")

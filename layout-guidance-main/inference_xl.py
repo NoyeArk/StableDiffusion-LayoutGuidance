@@ -2,11 +2,11 @@ import os
 import json
 import torch
 import hydra
-from sdxl import StableDiffusionXLPipeline
 from omegaconf import OmegaConf
-from utils import load_text_inversion
+from sdxl import StableDiffusionXLPipeline
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, LMSDiscreteScheduler
+from my_model.unet_2d_condition_xl import UNet2DConditionModel
 from utils import compute_ca_loss, Phrase2idx, draw_box, setup_logger
 
 
@@ -17,14 +17,9 @@ def main(cfg):
         unet_config = json.load(f)
 
     print('inference中main初始化')
-    from diffusers.models.unets import unet_2d_condition
-    # unet = unet_2d_condition_XL.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
-    #                                                                                 subfolder="unet")
-    # unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path,
-    #                                                                                 subfolder="unet")
-    # print('+++++++++++++++++++++++++')
-    # tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
-    # text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
+
+    tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
+    text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
 
     # if cfg.general.real_image_editing:
@@ -35,9 +30,8 @@ def main(cfg):
     #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # unet.to(device)
-    # text_encoder.to(device)
     vae.to(device)
+    text_encoder.to(device)
 
     # ------------------ 示例输入 ------------------
     examples = {"prompt": "A hello kitty toy is playing with a purple ball.",
@@ -68,12 +62,15 @@ def main(cfg):
     pipe = StableDiffusionXLPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
-    pipe.to("cuda:7")
+    pipe.unet = UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
+    pipe.to("cuda:0")
 
     # 推理
     pil_images = pipe(
         prompt=examples['prompt'],
         vae=vae,
+        tokenizer=tokenizer,
+        text_encoder=text_encoder,
         bboxes=examples['bboxes'],
         phrases=examples['phrases'],
         cfg=cfg,
