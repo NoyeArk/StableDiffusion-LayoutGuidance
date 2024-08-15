@@ -114,8 +114,6 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
     ):
         super().__init__()
 
-        print(f'接收到的attention_head_dim为{attention_head_dim}')
-
         self.sample_size = sample_size
         time_embed_dim = block_out_channels[0] * 4
 
@@ -204,13 +202,11 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             )
             self.up_blocks.append(up_block)
             prev_output_channel = output_channel
-        print('---------------------')
 
         # out
         self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
         self.conv_act = nn.SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1)
-        print('*********************')
 
     def set_attention_slice(self, slice_size):
         if slice_size is not None and self.config.attention_head_dim % slice_size != 0:

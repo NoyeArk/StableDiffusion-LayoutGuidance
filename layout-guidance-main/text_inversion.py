@@ -1,10 +1,6 @@
-import argparse
 import itertools
-import math
 import os
 import random
-from pathlib import Path
-from typing import Optional
 import hydra
 import json
 from omegaconf import DictConfig
@@ -25,7 +21,7 @@ from diffusers.optimization import get_scheduler
 from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer
 from utils import setup_logger, load_text_inversion
 def save_progress(text_encoder, placeholder_token_id, accelerator, iteration_idx, cfg, logger):
     logger.info("Saving embeddings to {}".format(os.path.join(cfg.general.save_path, "learned_embeds_iteration_{}.bin")))

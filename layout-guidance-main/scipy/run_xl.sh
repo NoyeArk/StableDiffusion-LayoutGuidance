@@ -1,0 +1,1 @@
+python inference/inference_sdxl.py general.save_path=./example_output

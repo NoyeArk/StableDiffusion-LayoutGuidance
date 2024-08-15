@@ -34,7 +34,7 @@ from diffusers.models.resnet import (
     Upsample2D,
 )
 from diffusers.models.transformers.dual_transformer_2d import DualTransformer2DModel
-from my_model.attention_xl import Transformer2DModel
+from .attention2 import Transformer2DModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -799,7 +799,6 @@ class UNetMidBlock2DCrossAttn(nn.Module):
 
         for i in range(num_layers):
             if not dual_cross_attention:
-                print('1111')
                 attentions.append(
                     Transformer2DModel(
                         num_attention_heads,
@@ -814,7 +813,6 @@ class UNetMidBlock2DCrossAttn(nn.Module):
                     )
                 )
             else:
-                print('2222')
                 attentions.append(
                     DualTransformer2DModel(
                         num_attention_heads,

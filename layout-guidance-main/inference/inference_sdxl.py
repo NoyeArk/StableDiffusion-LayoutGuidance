@@ -5,12 +5,12 @@ import hydra
 from omegaconf import OmegaConf
 from sdxl import StableDiffusionXLPipeline
 from transformers import CLIPTextModel, CLIPTokenizer
-from diffusers import AutoencoderKL, LMSDiscreteScheduler
-from my_model.unet_2d_condition_xl import UNet2DConditionModel
-from utils import compute_ca_loss, Phrase2idx, draw_box, setup_logger
+from diffusers import AutoencoderKL
+from ..my_model.sdxl.unet_2d_condition_xl import UNet2DConditionModel
+from ..utils import draw_box, setup_logger
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="base_config")
+@hydra.main(version_base=None, config_path="../conf", config_name="base_config")
 def main(cfg):
     # build and load model
     with open(cfg.general.unet_config) as f:
@@ -18,16 +18,10 @@ def main(cfg):
 
     print('inference中main初始化')
 
-    tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
-    text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
-    vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
+    tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer", local_files_only=True)
+    text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder", local_files_only=True)
+    vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae", local_files_only=True)
 
-    # if cfg.general.real_image_editing:
-    #     text_encoder, tokenizer = load_text_inversion(text_encoder, tokenizer, cfg.real_image_editing.placeholder_token,
-    #                                                   cfg.real_image_editing.text_inversion_path)
-    #     unet.load_state_dict(torch.load(cfg.real_image_editing.dreambooth_path)['unet'])
-    #     text_encoder.load_state_dict(torch.load(cfg.real_image_editing.dreambooth_path)['encoder'])
-    #
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     vae.to(device)
@@ -60,10 +54,12 @@ def main(cfg):
     OmegaConf.save(cfg, os.path.join(cfg.general.save_path, 'config.yaml'))
 
     pipe = StableDiffusionXLPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
+        "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16",
+        use_safetensors=True, local_files_only=True, device_map="auto"
     )
     pipe.unet = UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
-    pipe.to("cuda:0")
+
+    pipe.to('cuda:0')
 
     # 推理
     pil_images = pipe(

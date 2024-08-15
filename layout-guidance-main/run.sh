@@ -1,1 +1,0 @@
-python inference_xl.py general.save_path=./example_output

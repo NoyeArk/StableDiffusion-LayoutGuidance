@@ -1,13 +1,12 @@
 import hydra
 import torch
-from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline
 import torch.nn.functional as F
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from pathlib import Path
 from accelerate import Accelerator
 from omegaconf import DictConfig, OmegaConf
-from datetime import datetime
 import itertools
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -17,7 +16,6 @@ import math
 from my_model import unet_2d_condition
 import os
 import json
-from accelerate.logging import get_logger
 import hashlib
 from torch.utils.data import Dataset
 from torchvision import transforms

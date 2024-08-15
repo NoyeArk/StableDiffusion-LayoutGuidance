@@ -33,7 +33,6 @@ def get_down_block(
         cross_attention_dim=None,
         downsample_padding=None,
 ):
-    print(f'get_down_block函数，类型为{down_block_type}, attn_num_head_channels为{attn_num_head_channels}')
     down_block_type = down_block_type[7:] if down_block_type.startswith("UNetRes") else down_block_type
     if down_block_type == "DownBlock2D":
         return DownBlock2D(
@@ -139,8 +138,6 @@ def get_up_block(
         resnet_groups=None,
         cross_attention_dim=None,
 ):
-    print(f'get_up_block，类型为{up_block_type}, attn_num_head_channels为{attn_num_head_channels}')
-
     up_block_type = up_block_type[7:] if up_block_type.startswith("UNetRes") else up_block_type
     if up_block_type == "UpBlock2D":
         return UpBlock2D(
@@ -534,8 +531,6 @@ class CrossAttnDownBlock2D(nn.Module):
                     pre_norm=resnet_pre_norm,
                 )
             )
-            print(f'out_channels:', out_channels)
-            print(f'attn_num_head_channels:', attn_num_head_channels)
             attentions.append(
                 Transformer2DModel(
                     attn_num_head_channels,
@@ -602,7 +597,6 @@ class CrossAttnDownBlock2D(nn.Module):
                     create_custom_forward(attn, return_dict=False), hidden_states, encoder_hidden_states
                 )[0]
             else:
-                print('hidden_states.shape:', hidden_states.shape)
                 hidden_states = resnet(hidden_states, temb)
                 tmp_hidden_states, cross_attn_prob = attn(hidden_states, encoder_hidden_states=encoder_hidden_states)
                 hidden_states = tmp_hidden_states.sample

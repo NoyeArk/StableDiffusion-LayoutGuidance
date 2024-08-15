@@ -5,11 +5,10 @@ import hydra
 from PIL import Image
 from tqdm import tqdm
 from omegaconf import OmegaConf
-from utils import load_text_inversion
-from my_model import unet_2d_condition
 from transformers import CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, LMSDiscreteScheduler
-from utils import compute_ca_loss, Phrase2idx, draw_box, setup_logger
+from my_model.sdxl.unet_2d_condition_xl import UNet2DConditionModel
+from utils import draw_box, setup_logger, Phrase2idx, compute_ca_loss, load_text_inversion
 
 
 def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrases, cfg, logger):
@@ -39,6 +38,8 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
     cond_embeddings = text_encoder(input_ids.input_ids.to(device))[0]
     text_embeddings = torch.cat([uncond_embeddings, cond_embeddings])
+
+    add_text_embeds = pooled_prompt_embeds
 
     # 种子生成器，用于产生初始潜在噪声
     generator = torch.manual_seed(cfg.inference.rand_seed)
@@ -92,8 +93,19 @@ def inference(device, unet, vae, tokenizer, text_encoder, prompt, bboxes, phrase
 
             # 对输入进行缩放
             latent_model_input = noise_scheduler.scale_model_input(latent_model_input, t)
+
+            # 预测噪声残差
+            added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
+            if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
+                added_cond_kwargs["image_embeds"] = image_embeds
+
             noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
-                unet(latent_model_input, t, encoder_hidden_states=text_embeddings)
+                unet(
+                    latent_model_input,
+                    t,
+                    encoder_hidden_states=text_embeddings,
+                    added_cond_kwargs=added_cond_kwargs,
+                )
 
             # 获得噪声预测样本
             noise_pred = noise_pred.sample
@@ -123,7 +135,9 @@ def main(cfg):
     with open(cfg.general.unet_config) as f:
         unet_config = json.load(f)
 
-    unet = unet_2d_condition.UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
+    print('inference中main初始化')
+
+    unet = UNet2DConditionModel(**unet_config).from_pretrained(cfg.general.model_path, subfolder="unet")
     tokenizer = CLIPTokenizer.from_pretrained(cfg.general.model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(cfg.general.model_path, subfolder="text_encoder")
     vae = AutoencoderKL.from_pretrained(cfg.general.model_path, subfolder="vae")
@@ -141,9 +155,9 @@ def main(cfg):
     vae.to(device)
 
     # ------------------ 示例输入 ------------------
-    examples = {"prompt": "A hello kitty toy is playing with a purple ball.",
-                "phrases": "hello kitty; ball",
-                "bboxes": [[[0.1, 0.2, 0.5, 0.8]], [[0.75, 0.6, 0.95, 0.8]]],
+    examples = {"prompt": "A elephant steps on a green box.",
+                "phrases": "elephant; box",
+                "bboxes": [[[0.1, 0.2, 0.5, 0.8]], [[0.1, 0.6, 0.4, 0.8]]],
                 'save_path': cfg.general.save_path
                 }
 
@@ -162,7 +176,6 @@ def main(cfg):
     logger = setup_logger(cfg.general.save_path, __name__)
 
     logger.info(cfg)
-    # Save cfg
     logger.info("save config to {}".format(os.path.join(cfg.general.save_path, 'config.yaml')))
     OmegaConf.save(cfg, os.path.join(cfg.general.save_path, 'config.yaml'))
 

@@ -52,11 +52,11 @@ from diffusers.utils import (
 )
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, StableDiffusionMixin
-
 # ---------------------------------- 新增 ----------------------------------------
 from PIL import Image
-from utils import compute_ca_loss, Phrase2idx
-from my_model.unet_2d_condition_xl import UNet2DConditionModel
+from tqdm import tqdm
+from ..utils import compute_ca_loss, Phrase2idx
+from ..my_model.sdxl.unet_2d_condition_xl import UNet2DConditionModel
 # --------------------------------------------------------------------------------
 
 
@@ -307,7 +307,7 @@ class StableDiffusionXLPipeline(
             num_images_per_prompt (`int`):
                 number of images that should be generated per prompt
             do_classifier_free_guidance (`bool`):
-                whether to use classifier free guidance or not
+                是否使用无分类器指导
             negative_prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts not to guide the image generation. If not defined, one has to pass
                 `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
@@ -821,7 +821,7 @@ class StableDiffusionXLPipeline(
     def interrupt(self):
         return self._interrupt
 
-    @torch.no_grad()
+    # @torch.no_grad()
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
@@ -1072,7 +1072,8 @@ class StableDiffusionXLPipeline(
         else:
             batch_size = prompt_embeds.shape[0]
 
-        device = self._execution_device
+        # device = self._execution_device
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # 3. 编码输入提示词
         lora_scale = (
@@ -1117,7 +1118,6 @@ class StableDiffusionXLPipeline(
             generator,
             latents,
         )
-        latents = latents * self.scheduler.init_noise_sigma
 
         # 6. 准备额外的步骤 kwargs。TODO：理想情况下，逻辑应该从管道中移出
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -1223,20 +1223,30 @@ class StableDiffusionXLPipeline(
         # --------------------------------------------------------------------------------
 
         self._num_timesteps = len(timesteps)
-        with self.progress_bar(total=num_inference_steps) as progress_bar:
-            iteration = 0
 
-            for i, t in enumerate(timesteps):
+        with self.progress_bar(total=num_inference_steps) as progress_bar:
+            for i, t in enumerate(tqdm(timesteps)):
+                iteration = 0
+
                 if self.interrupt:
                     continue
 
                 while loss.item() / cfg.inference.loss_scale > cfg.inference.loss_threshold and \
                     iteration < cfg.inference.max_iter and i < cfg.inference.max_index_step:
+
                     latents = latents.requires_grad_(True)
+                    print('latents.device:', latents.device)
+                    print('latents.is_leaf:', latents.is_leaf)
+                    print('latents.requires_grad:', latents.requires_grad)
 
                     # 如果我们在做无分类器指导，请扩展潜伏物
-                    latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                    # latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                    latent_model_input = latents
                     latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+
+                    print('latent_model_input.device:', latent_model_input.device)
+                    print('latent_model_input.is_leaf:', latent_model_input.is_leaf)
+                    print('latent_model_input.requires_grad:', latent_model_input.requires_grad)
 
                     # 预测噪声残差
                     added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
@@ -1259,24 +1269,18 @@ class StableDiffusionXLPipeline(
                     loss = compute_ca_loss(attn_map_integrated_mid, attn_map_integrated_up, bboxes=bboxes,
                                            object_positions=object_positions) * cfg.inference.loss_scale
                     # 使用自动求导机制计算损失对 latents 的梯度
-                    grad_cond = torch.autograd.grad(loss.requires_grad_(True), [latents], allow_unused=True)[0]
-                    grad_cond1 = torch.autograd.grad(attn_map_integrated_mid[0].requires_grad_(True), [latents], allow_unused=True)[0]
-                    grad_cond2 = torch.autograd.grad(attn_map_integrated_up[0].requires_grad_(True), [latents], allow_unused=True)[0]
-                    grad_cond3 = torch.autograd.grad(noise_pred[0].requires_grad_(True), [latents], allow_unused=True)[0]
+                    grad_cond = torch.autograd.grad(loss.requires_grad_(True), [latents])[0]
                     print('grad_cond:', grad_cond)
-                    print('grad_cond1:', grad_cond1)
-                    print('grad_cond2:', grad_cond2)
-                    print('grad_cond3:', grad_cond3)
                     # --------------------------------------------------------------------------------
 
                     # perform guidance
-                    if self.do_classifier_free_guidance:
-                        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                        noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-
-                    if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:
-                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                        noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale)
+                    # if self.do_classifier_free_guidance:
+                    #     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    #     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
+                    #
+                    # if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:
+                    #     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                    #     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale)
 
                     # 计算前一个噪声样本 x_t -> x_t-1
                     latents_dtype = latents.dtype
@@ -1285,7 +1289,7 @@ class StableDiffusionXLPipeline(
                     # 根据计算出的梯度和噪声调度器的参数更新 latents
                     print("grad_cond:", grad_cond)
 
-                    latents = latents - grad_cond * self.scheduler.sigmas[i] ** 2
+                    latents = latents - grad_cond * self.schedule.sigmas[i] ** 2
                     iteration += 1
                     # 清理 CUDA 缓存以释放内存
                     torch.cuda.empty_cache()
@@ -1323,28 +1327,28 @@ class StableDiffusionXLPipeline(
                     if XLA_AVAILABLE:
                         xm.mark_step()
 
-                # ---------------------------------- 新增 ----------------------------------------
-                # 禁用梯度计算
-                with torch.no_grad():
-                    # 将 latents 张量复制一份并拼接在一起，形成一个新的张量 latent_model_input
-                    latent_model_input = torch.cat([latents] * 2)
+                    # ---------------------------------- 新增 ----------------------------------------
+                    # 禁用梯度计算
+                    with torch.no_grad():
+                        # 将 latents 张量复制一份并拼接在一起，形成一个新的张量 latent_model_input
+                        latent_model_input = torch.cat([latents] * 2)
 
-                    # 对输入进行缩放
-                    latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                    noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
-                        self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings)
+                        # 对输入进行缩放
+                        latent_model_input = noise_scheduler.scale_model_input(latent_model_input, t)
+                        noise_pred, attn_map_integrated_up, attn_map_integrated_mid, attn_map_integrated_down = \
+                            self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings)
 
-                    # 获得噪声预测样本
-                    noise_pred = noise_pred.sample
+                        # 获得噪声预测样本
+                        noise_pred = noise_pred.sample
 
-                    # perform guidance
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred = noise_pred_uncond + cfg.inference.classifier_free_guidance * (
-                            noise_pred_text - noise_pred_uncond)
+                        # perform guidance
+                        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                        noise_pred = noise_pred_uncond + cfg.inference.classifier_free_guidance * (
+                                noise_pred_text - noise_pred_uncond)
 
-                    latents = self.scheduler.step(noise_pred, t, latents).prev_sample
-                    torch.cuda.empty_cache()
-                # --------------------------------------------------------------------------------
+                        latents = noise_scheduler.step(noise_pred, t, latents).prev_sample
+                        torch.cuda.empty_cache()
+                    # --------------------------------------------------------------------------------
 
         if not output_type == "latent":
             # make sure the VAE is in float32 mode, as it overflows in float16
