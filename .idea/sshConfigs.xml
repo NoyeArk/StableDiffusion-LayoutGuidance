@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SshConfigs">
-    <configs>
-      <sshConfig authType="PASSWORD" host="connect.yza1.seetacloud.com" id="6ed4a4ff-ed32-4509-8870-9d20f03c6d66" port="13115" nameFormat="DESCRIPTIVE" username="root" useOpenSSHConfig="false" />
-    </configs>
-  </component>
-</project>
