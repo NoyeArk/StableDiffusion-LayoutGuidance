@@ -1,1 +1,0 @@
-python inference_sd.py general.save_path=./example_output
